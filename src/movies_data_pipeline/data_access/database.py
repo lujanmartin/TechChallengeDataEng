@@ -23,7 +23,7 @@ engine = create_engine(
     pool_pre_ping=True, 
     pool_recycle=3600,   
     pool_size=5,         
-    max_overflow=10      
+    max_overflow=12      
 )
 
 def init_db():

@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 # Suppress overly verbose SQLAlchemy logs if not needed
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.getLogger("python_multipart.multipart").setLevel(logging.INFO)
 
 app = FastAPI(title="Movies Data Pipeline")
 

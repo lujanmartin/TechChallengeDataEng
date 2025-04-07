@@ -2,6 +2,7 @@ import pandas as pd
 from typing import Tuple
 from pathlib import Path
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,9 @@ class Extractor:
                 combined_df = pd.concat([existing_df, df], ignore_index=True)
             else:
                 combined_df = df
+            
+            combined_df['created_at'] = datetime.now()
+            combined_df['updated_at'] = datetime.now()
             
             combined_df.to_parquet(self.bronze_file_path)
             logger.info(f"Appended {record_count} records from {filename} to {self.bronze_file_path}")

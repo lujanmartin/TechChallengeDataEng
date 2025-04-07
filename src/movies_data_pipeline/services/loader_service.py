@@ -38,7 +38,7 @@ class Loader:
             "dim_genre": ["genre_name"],
             "bridge_movie_genre": ["movie_id", "genre_id"],
             "bridge_movie_crew": ["movie_id", "crew_id", "character_name"],
-            "fact_movie_metrics": ["movie_id", "date_id", "country_id", "language_id"],
+            "fact_movie_metrics": ["silver_id"], 
             "revenue_by_genre": ["genre_name"],
             "avg_score_by_year": ["year"],
             "lineage_log": ["lineage_log_id"]
@@ -78,6 +78,10 @@ class Loader:
                             df = gold_tables[table_name]
                             if df.empty:
                                 continue
+                            table = Table(table_name, self.metadata, autoload_with=self.db_engine)
+                            constraint_cols = unique_constraints[table_name]
+                            db_columns = [c.name for c in table.columns]
+
                             # Handle specific table transformations
                             if table_name == "bridge_movie_genre":
                                 df["movie_id"] = df["movie_lineage_id"].map(id_mappings["dim_movie"])
@@ -92,11 +96,10 @@ class Loader:
                                 df["date_id"] = df["date_lineage_id"].map(id_mappings["dim_date"])
                                 df["country_id"] = df["country_lineage_id"].map(id_mappings["dim_country"])
                                 df["language_id"] = df["language_lineage_id"].map(id_mappings["dim_language"])
-                                df = df[["movie_id", "date_id", "country_id", "language_id", "budget", "revenue", "score", "lineage_id", "created_at", "updated_at"]]
+                                df = df[["silver_id", "movie_id", "date_id", "country_id", "language_id", 
+                                         "budget", "revenue", "score", "lineage_id", "created_at", "updated_at"]]
+
                             # Deduplicate based on constraint columns
-                            table = Table(table_name, self.metadata, autoload_with=self.db_engine)
-                            constraint_cols = unique_constraints[table_name]
-                            db_columns = [c.name for c in table.columns]
                             df = df[[col for col in df.columns if col in db_columns]]
                             df = df.drop_duplicates(subset=constraint_cols, keep="last")
                             records = df.to_dict("records")
@@ -116,9 +119,6 @@ class Loader:
                             constraint_cols = unique_constraints[table_name]
                             db_columns = [c.name for c in table.columns]
                             df = df[[col for col in df.columns if col in db_columns]]
-                            # Deduplicate based on constraint columns
-                            # Keeping a lightweight deduplication step in the Loader as a fallback, 
-                            # using the database’s unique_constraints, to catch any edge cases missed in the Transformer.
                             df = df.drop_duplicates(subset=constraint_cols, keep="last")
                             records = df.to_dict("records")
                             stmt = insert(table).values(records)
@@ -130,11 +130,17 @@ class Loader:
                             conn.execute(stmt)
                             logger.info(f"Upserted {table_name} with {len(df)} records")
 
-                # Sync with Typesense
-                with Session(self.db_engine) as session:
-                    vector_db = VectorDB(initialize=False, db_session=session)
-                    logger.info(f"Initializing sync with gold layer")
-                    vector_db._sync_with_gold()
+                logger.info("Finished upserts, preparing to sync with Typesense")
+                try:
+                    with Session(self.db_engine) as session:
+                        vector_db = VectorDB(initialize=False, db_session=session)
+                        logger.info("Initializing sync with gold layer")
+                        vector_db._sync_with_gold()
+                        logger.info("Typesense sync completed")
+                except Exception as sync_e:
+                    logger.error(f"Error during Typesense sync: {str(sync_e)}")
+                    raise
+        
         except Exception as e:
             logger.error(f"Error during load_gold: {str(e)}")
             raise

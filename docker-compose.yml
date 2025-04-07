@@ -79,7 +79,7 @@ services:
       - TYPESENSE_API_KEY=${TYPESENSE_API_KEY}
       - TYPESENSE_DATA_DIR=${TYPESENSE_DATA_DIR}
       - TYPESENSE_ENABLE_CORS=${TYPESENSE_ENABLE_CORS}
-    command: --data-dir ${TYPESENSE_DATA_DIR} --api-key ${TYPESENSE_API_KEY} --enable-cors ${TYPESENSE_ENABLE_CORS} --log-level WARNING
+      - TYPESENSE_LOG_LEVEL=WARN
     networks:
       - app_network
     healthcheck:

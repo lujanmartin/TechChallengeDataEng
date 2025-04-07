@@ -22,7 +22,7 @@ class InitializeService:
 
         # Define schemas for bronze and silver layers
         self.bronze_schema = {
-            "bronze_id": str,
+            "bronze_id": int,
             "name": str,
             "orig_title": str,
             "overview": str,
@@ -34,12 +34,14 @@ class InitializeService:
             "orig_lang": str,
             "budget_x": float,
             "revenue": float,
-            "score": float
+            "score": float,
+            "created_at": "datetime64[ns]",
+            "updated_at": "datetime64[ns]"
         }
 
         self.silver_schema = {
-            "silver_id": str,
-            "bronze_id": str,
+            "silver_id": int,
+            "bronze_id": int,
             "name": str,
             "orig_title": str,
             "overview": str,

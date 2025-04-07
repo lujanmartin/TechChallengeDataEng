@@ -19,7 +19,7 @@ class VectorDB:
         self.client = typesense.Client({
             "nodes": [{"host": "typesense", "port": "8108", "protocol": "http"}],
             "api_key": api_key,
-            "connection_timeout_seconds": 10
+            "connection_timeout_seconds": 15
         })
         self.collection_name = "movies"
         self.db_session = db_session
@@ -43,6 +43,7 @@ class VectorDB:
                 {"name": "release_date", "type": "string", "optional": True},
                 {"name": "genres", "type": "string[]", "optional": True},
                 {"name": "crew", "type": "object[]", "optional": True},
+                {"name": "language", "type": "string", "optional": True},
                 {"name": "created_at", "type": "string", "optional": True},
                 {"name": "updated_at", "type": "string", "optional": True}
             ]
@@ -62,13 +63,14 @@ class VectorDB:
             return
         
         try:
-            # Implemented sync for genres, crew, release_date, and language from the gold layer.
-            # Additional fields (e.g., country, budget, revenue) can be implemented following the same
-            # pattern by joining with relevant tables (e.g., DimCountry, FactMovieMetrics) and
-            # adding them to the Typesense document.
-            movies = self.db_session.query(DimMovie).all()
+            # Stream movies from the database in chunks
+            batch_size = 1000  # Match your existing batch_index_movies setting
+            total_synced = 0
             documents = []
-            for movie in movies:
+
+            # Use yield_per to stream results
+            movies_query = self.db_session.query(DimMovie).yield_per(batch_size)
+            for movie in movies_query:
                 genres = (
                     self.db_session.query(DimGenre.genre_name)
                     .join(BridgeMovieGenre, BridgeMovieGenre.genre_id == DimGenre.genre_id)
@@ -86,20 +88,19 @@ class VectorDB:
                 crew_list = [{"actor_name": c.actor_name, "character_name": c.character_name} for c in crew]
 
                 metrics = (
-                    self.db_session.query(DimDate.release_date,DimLanguage.language_name)
+                    self.db_session.query(DimDate.release_date, DimLanguage.language_name)
                     .join(FactMovieMetrics, FactMovieMetrics.date_id == DimDate.date_id)
                     .join(DimLanguage, FactMovieMetrics.language_id == DimLanguage.language_id)
                     .filter(FactMovieMetrics.movie_id == movie.movie_id)
                     .first()
                 )
-                # Treat release_date as a string directly
                 release_date = metrics.release_date if metrics and metrics.release_date else None
                 if release_date and " " in release_date:
                     release_date = release_date.split(" ")[0]  # e.g., "2023-03-02"
 
                 language = metrics.language_name if metrics and metrics.language_name else None
 
-                documents.append({
+                document = {
                     "id": str(movie.movie_id),
                     "name": movie.name,
                     "orig_title": movie.orig_title,
@@ -108,17 +109,27 @@ class VectorDB:
                     "release_date": release_date,
                     "genres": genre_names,
                     "crew": crew_list,
-                    "language":language,
+                    "language": language,
                     "created_at": movie.created_at.isoformat(),
                     "updated_at": movie.updated_at.isoformat()
-                })
-            
-            if not documents:
-                logger.info("No movies found in gold layer; skipping sync")
-                return
-            
-            self.batch_index_movies(documents)
-            logger.info(f"Synced {len(documents)} movies to Typesense")
+                }
+                documents.append(document)
+
+                # Send batch when full or last record
+                if len(documents) >= batch_size:
+                    self.batch_index_movies(documents)
+                    total_synced += len(documents)
+                    logger.debug(f"Synced batch of {len(documents)} movies; total synced: {total_synced}")
+                    documents = []
+
+            # Sync any remaining documents
+            if documents:
+                self.batch_index_movies(documents)
+                total_synced += len(documents)
+                logger.debug(f"Synced final batch of {len(documents)} movies; total synced: {total_synced}")
+
+            logger.info(f"Synced {total_synced} movies to Typesense")
+        
         except Exception as e:
             logger.error(f"Failed to sync with gold layer: {str(e)}")
             raise

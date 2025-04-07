@@ -96,8 +96,9 @@ class BridgeMovieCrew(SQLModel, table=True):
 
 class FactMovieMetrics(SQLModel, table=True):
     __tablename__ = "fact_movie_metrics"
-    __table_args__ = (UniqueConstraint("movie_id","date_id","country_id","language_id", name="uq_fact_movie_metrics"),)
+    __table_args__ = (UniqueConstraint("silver_id", name="uq_fact_movie_metrics"),)
     fact_id: int = Field(primary_key=True)
+    silver_id: int
     movie_id: int = Field(foreign_key="dim_movie.movie_id")
     date_id: int = Field(foreign_key="dim_date.date_id")
     country_id: int = Field(foreign_key="dim_country.country_id")
