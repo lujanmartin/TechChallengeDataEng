@@ -44,25 +44,27 @@ src/
 ├── movies_data_pipeline/           # Main app directory
 │   ├── api/                        # FastAPI API layer
 │   │   ├── routes/                 # API endpoints
-│   │   │   ├── crud.py             # CRUD routes (partial)
+│   │   │   ├── crud.py             # CRUD routes
 │   │   │   ├── gold.py             # GET /revenue_by_genre, GET /avg_score_by_year
 │   │   │   ├── search.py           # GET /search/
 │   │   │   └── seed.py             # POST /
 │   │   └── main.py                 # FastAPI entry point
 │   ├── controllers/                # Business logic
-│   │   ├── crud_controller.py      # CRUD operations (partial)
+│   │   ├── crud_controller.py      # CRUD operations
 │   │   ├── gold_controller.py      # Gold layer queries
 │   │   ├── search_controller.py    # Search logic
 │   │   └── seed_controller.py      # Seeding logic
 │   ├── services/                   # Data processing services
+│   │   ├── __pycache__/            # Python cache directory
 │   │   ├── bronze_service.py       # Bronze layer operations
 │   │   ├── etl_service.py          # ETL pipeline coordinator
 │   │   ├── extractor_service.py    # Data extraction
-│   │   ├── transformer_service.py  # Data transformation
+│   │   ├── initialize_service.py   # Schema initialization
 │   │   ├── loader_service.py       # Data loading
 │   │   ├── search_service.py       # Search logic
 │   │   ├── search_service_adapter.py # Typesense integration
-│   │   └── initialize_service.py   # Schema initialization
+│   │   ├── transformer_service.py  # Data transformation
+│   │   └── truncate_loader_service.py # Truncate-and-load for gold layer
 │   ├── data_access/                # Data layer
 │   │   ├── data_lake/              # Data lake
 │   │   │   ├── bronze/             # Raw data (Parquet + original files)
@@ -76,7 +78,7 @@ src/
 │   │   └── models/                 # Pydantic models
 │   │       ├── bronze.py           # BronzeMovieUpdate model
 │   │       └── movie.py            # Movie entity
-├── .env                            # Enviroment variables
+├── .env                            # Environment variables
 ├── Dockerfile                      # FastAPI Dockerfile
 ├── Dockerfile.typesense            # Typesense Dockerfile
 ├── docker-compose.yml              # Docker Compose setup
@@ -109,7 +111,6 @@ src/
 - Silver deduplicates incrementally, processing only new records and keeping existing ones unless updated via PUT.
 - Gold inherits deduplicated data, structured into a star schema in PostgreSQL.
 
-
 ## Data Lake Structure
 
 - **Bronze Layer:** Raw data stored as `bronze_movies.parquet`, with original files (e.g., `imdb_movies_20250406.csv`) retained in the same directory.
@@ -124,19 +125,15 @@ src/
 
 ## REST API Endpoints
 
-- **POST** `/seed`: Uploads a file (CSV, JSON, PDF) to seed data into bronze, appending to `bronze_movies.parquet` and storing the original file with a timestamp.
+- **POST** `/seed`: Uploads a file (`CSV` or `JSON`) to seed data into bronze, appending to `bronze_movies.parquet` and storing the original file with a timestamp.
 - GET** `/search/`: Searches movies in Typesense by query and optional genre filter, with pagination (`limit`, `offset`).
 - GET** `/revenue_by_genre`: Retrieves total revenue by genre from PostgreSQL.
 - GET** `/avg_score_by_year`: Retrieves average score by year from PostgreSQL.
-- GET** `/data/`: Fetches paginated bronze data (implemented).
-- GET** `/files/`: Lists bronze files excluding `bronze_movies.parquet` (implemented).
-- PUT** `/data/`: Updates bronze records (partial, in progress).
-- DELETE** `/data/{bronze_id}`: Deletes a bronze record (partial, in progress).
-- POST** `/data/`: Creates new bronze records (single JSON object or an array of JSON objects)
-
-Note: This is a first commit; full CRUD operations (`POST /data/`, complete `PUT /data/`, `DELETE /data/{bronze_id}`) are still in development.
-
-
+- GET** `/data/`: Fetches paginated bronze data.
+- GET** `/files/`: Lists bronze files excluding `bronze_movies.parquet`.
+- POST** `/data/`: Creates new bronze records (single `JSON` object or an array of `JSON` objects)
+- PUT** `/bronze/update-full-etl/`: Updates bronze records by `bronze_id` (single JSON object or array of JSON objects, `bronze_id` mandatory). Updates the silver layer, deduplicating based on `name` and `orig_title` (considering two movies with the same `name` and `orig_title` as the same movie), then runs the full ETL process, truncating the gold layer and reloading it.
+- DELETE** `/bronze/delete-full-etl/`: Deletes bronze records by `bronze_id` (single integer or array of integers). Deletes matching records from the silver layer (by `bronze_id` or falling back to `name` and `orig_title`), then runs the full ETL process, truncating the gold layer and reloading it.
 
 ## Setup and Running
 
@@ -234,7 +231,7 @@ Open pgAdmin in your browser at http://localhost:8080.
 
 ## Project Status
 
-This is the **first commit** for the Movies Data Pipeline, fulfilling core requirements from the technical challenge:
+This is stage of the project fulfils core requirements from the technical challenge:
 - Medallion architecture with bronze (raw), silver (deduplicated), and gold (star schema) layers.
 - Data lake using Parquet files for bronze and silver.
 - Data warehouse in PostgreSQL with 1 fact table, 6+ dimension tables, and bridge tables.
@@ -244,6 +241,5 @@ This is the **first commit** for the Movies Data Pipeline, fulfilling core requi
 
 **Next Steps:**
 
-- Complete CRUD endpoints ( finalize PUT /data/, DELETE /data/{bronze_id}).
 - Add authentication (e.g., Basic Auth or JWT).
 - Include Mermaid diagrams for each layer (bronze, silver, gold) and overall data lake.

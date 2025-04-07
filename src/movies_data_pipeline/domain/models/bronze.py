@@ -3,6 +3,7 @@ from datetime import date
 from pydantic import BaseModel
 
 class BronzeMovieUpdate(BaseModel):
+    bronze_id: int
     name: Optional[str] = None
     orig_title: Optional[str] = None
     overview: Optional[str] = None
@@ -15,7 +16,6 @@ class BronzeMovieUpdate(BaseModel):
     budget: Optional[float] = None
     revenue: Optional[float] = None
     score: Optional[float] = None
-    is_deleted: Optional[bool] = None
 
     class Config:
         json_encoders = {
