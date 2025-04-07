@@ -132,7 +132,7 @@ src/
 - GET** `/files/`: Lists bronze files excluding `bronze_movies.parquet` (implemented).
 - PUT** `/data/`: Updates bronze records (partial, in progress).
 - DELETE** `/data/{bronze_id}`: Deletes a bronze record (partial, in progress).
-- POST** `/data/`: Creates new bronze records (not yet implemented).
+- POST** `/data/`: Creates new bronze records (single JSON object or an array of JSON objects)
 
 Note: This is a first commit; full CRUD operations (`POST /data/`, complete `PUT /data/`, `DELETE /data/{bronze_id}`) are still in development.
 
@@ -244,6 +244,6 @@ This is the **first commit** for the Movies Data Pipeline, fulfilling core requi
 
 **Next Steps:**
 
-- Complete CRUD endpoints (POST /data/, finalize PUT /data/, DELETE /data/{bronze_id}).
+- Complete CRUD endpoints ( finalize PUT /data/, DELETE /data/{bronze_id}).
 - Add authentication (e.g., Basic Auth or JWT).
 - Include Mermaid diagrams for each layer (bronze, silver, gold) and overall data lake.

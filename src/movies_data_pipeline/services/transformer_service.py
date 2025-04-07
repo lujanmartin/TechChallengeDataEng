@@ -93,7 +93,12 @@ class Transformer:
         silver_df = combined_df.drop_duplicates(subset=unique_key, keep="first")
         
         # Identify new unique records added from this upload
-        new_silver_df = silver_df[~silver_df["bronze_id"].isin(existing_silver["bronze_id"])]
+        #new_silver_df = silver_df[~silver_df["bronze_id"].isin(existing_silver["bronze_id"])]
+        if existing_silver.empty:
+            new_silver_df = silver_df
+        else:
+            existing_keys = set(existing_silver[unique_key].itertuples(index=False, name=None))
+            new_silver_df = silver_df[~silver_df[unique_key].apply(lambda x: tuple(x), axis=1).isin(existing_keys)]
         logger.info(f"Identified {len(new_silver_df)} new unique records")
         
         # Add timestamps and silver_id to full silver_df using .loc to avoid warnings
@@ -107,7 +112,7 @@ class Transformer:
         for _, row in new_silver_df.iterrows():
             lineage_entries.append({
                 "lineage_log_id": len(lineage_entries) + 1,
-                "record_id": row["bronze_id"],
+                "record_id": row.get("bronze_id", f"{row['name']}_{row['orig_title']}"),
                 "source_path": new_file_path,
                 "stage": "silver",
                 "transformation": "deduplicated_and_processed",
