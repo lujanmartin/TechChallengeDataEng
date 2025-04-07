@@ -17,6 +17,8 @@ pydantic = "^2.7.4"
 typesense = "^1.0.3"  
 pyarrow = "^17.0.0"
 tenacity = "^8.5.0"
+python-jose = { extras = ["cryptography"], version = "^3.3.0" }
+passlib = { extras = ["bcrypt"], version = "^1.7.4" }
 
 
 [tool.poetry.group.dev.dependencies]

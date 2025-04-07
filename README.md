@@ -5,7 +5,7 @@ A data engineering project that implements an ETL pipeline, data lake, data ware
 ## Architecture
 - **PostgreSQL**: Hosts the Gold layer in a data warehouse with a star schema, storing fact and dimension tables (e.g., `fact_movie_metrics`, `dim_movie`) for efficient querying.
 - **Typesense**: Vector database providing fast search capabilities for movie entities, synced with the Gold layer.
-- **FastAPI**: REST API for data seeding, querying, and (partially implemented) CRUD operations.
+- **FastAPI**: REST API for data seeding, querying, and CRUD operations, secured with JWT authentication.
 - **Data Lake**: Medallion architecture with:
   - **Bronze Layer**: Raw, unprocessed data stored as Parquet files (e.g., `bronze_movies.parquet`) and original uploaded files (e.g., CSV, JSON), preserved as-is for lineage and auditing.
   - **Silver Layer**: Cleaned, deduplicated data stored as Parquet files (e.g., `silver_movies.parquet`), processing only new, unique records.
@@ -36,6 +36,9 @@ This project is a movie data pipeline built with FastAPI, PostgreSQL, and Typese
 - **Incremental Processing:** Only new data is processed from bronze to silver and gold. Existing movies in `bronze_movies.parquet` are not reprocessed unless updated via a PUT operation.
 - **Deduplication in Silver:** The silver layer deduplicates data based on `name` and `orig_title`, ensuring only unique records flow to gold. Original files in bronze remain untouched.
 - **Data Flow:** Data moves from bronze (raw) -> silver (cleaned, deduplicated) -> gold (structured star schema in PostgreSQL), with Typesense syncing from gold for search.
+- **Authentication:** JWT (JSON Web Token) authentication is implemented to secure API endpoints, using a hardcoded user for simplicity (configurable via environment variables).
+
+
 
 <summary>View Directory Structure</summary>
 
@@ -44,11 +47,14 @@ src/
 ├── movies_data_pipeline/           # Main app directory
 │   ├── api/                        # FastAPI API layer
 │   │   ├── routes/                 # API endpoints
+│   │   │   ├── auth.py             # JWT authentication routes
 │   │   │   ├── crud.py             # CRUD routes
 │   │   │   ├── gold.py             # GET /revenue_by_genre, GET /avg_score_by_year
 │   │   │   ├── search.py           # GET /search/
 │   │   │   └── seed.py             # POST /
 │   │   └── main.py                 # FastAPI entry point
+│   ├── config/                     # Configuration files
+│   │   └── auth.py                 # JWT configuration
 │   ├── controllers/                # Business logic
 │   │   ├── crud_controller.py      # CRUD operations
 │   │   ├── gold_controller.py      # Gold layer queries
@@ -56,6 +62,7 @@ src/
 │   │   └── seed_controller.py      # Seeding logic
 │   ├── services/                   # Data processing services
 │   │   ├── __pycache__/            # Python cache directory
+│   │   ├── auth_service.py         # JWT authentication logic
 │   │   ├── bronze_service.py       # Bronze layer operations
 │   │   ├── etl_service.py          # ETL pipeline coordinator
 │   │   ├── extractor_service.py    # Data extraction
@@ -104,6 +111,8 @@ src/
 - **SearchServiceAdapter:** Syncs Typesense with the gold layer for search functionality.
 - **ETLService:** Orchestrates the pipeline, processing only new files and triggering Typesense sync.
 - **BronzeService:** Handles bronze operations (seeding, partial CRUD), ensuring updates occur only via explicit PUT requests.
+- **AuthService:** Implements JWT authentication with a hardcoded user (configurable via `.env`).
+
 
 ### Deduplication Strategy:
 
@@ -125,15 +134,16 @@ src/
 
 ## REST API Endpoints
 
+- **POST** `/auth/token`: Authenticates a user and returns a JWT token (uses hardcoded credentials from `.env`).
 - **POST** `/seed`: Uploads a file (`CSV` or `JSON`) to seed data into bronze, appending to `bronze_movies.parquet` and storing the original file with a timestamp.
-- GET** `/search/`: Searches movies in Typesense by query and optional genre filter, with pagination (`limit`, `offset`).
-- GET** `/revenue_by_genre`: Retrieves total revenue by genre from PostgreSQL.
-- GET** `/avg_score_by_year`: Retrieves average score by year from PostgreSQL.
-- GET** `/data/`: Fetches paginated bronze data.
-- GET** `/files/`: Lists bronze files excluding `bronze_movies.parquet`.
-- POST** `/data/`: Creates new bronze records (single `JSON` object or an array of `JSON` objects)
-- PUT** `/bronze/update-full-etl/`: Updates bronze records by `bronze_id` (single JSON object or array of JSON objects, `bronze_id` mandatory). Updates the silver layer, deduplicating based on `name` and `orig_title` (considering two movies with the same `name` and `orig_title` as the same movie), then runs the full ETL process, truncating the gold layer and reloading it.
-- DELETE** `/bronze/delete-full-etl/`: Deletes bronze records by `bronze_id` (single integer or array of integers). Deletes matching records from the silver layer (by `bronze_id` or falling back to `name` and `orig_title`), then runs the full ETL process, truncating the gold layer and reloading it.
+- **GET** `/search/`: Searches movies in Typesense by query and optional genre filter, with pagination (`limit`, `offset`).
+- **GET** `/revenue_by_genre`: Retrieves total revenue by genre from PostgreSQL.(JWT-protected)
+- **GET** `/avg_score_by_year`: Retrieves average score by year from PostgreSQL.(JWT-protected)
+- **GET** `/data/`: Fetches paginated bronze data.
+- **GET** `/files/`: Lists bronze files excluding `bronze_movies.parquet`.
+- **POST** `/data/`: Creates new bronze records (single `JSON` object or an array of `JSON` objects)
+- **PUT** `/bronze/update-full-etl/`: Updates bronze records by `bronze_id` (single JSON object or array of JSON objects, `bronze_id` mandatory). Updates the silver layer, deduplicating based on `name` and `orig_title` (considering two movies with the same `name` and `orig_title` as the same movie), then runs the full ETL process, truncating the gold layer and reloading it.
+- **DELETE** `/bronze/delete-full-etl/`: Deletes bronze records by `bronze_id` (single integer or array of integers). Deletes matching records from the silver layer (by `bronze_id` or falling back to `name` and `orig_title`), then runs the full ETL process, truncating the gold layer and reloading it.
 
 ## Setup and Running
 
@@ -238,8 +248,8 @@ This is stage of the project fulfils core requirements from the technical challe
 - Typesense vector DB via Docker for fast search.
 - FastAPI REST API with seeding and querying implemented, partial CRUD in progress.
 - Pydantic domain models and SQLModel for gold tables.
+- JWT authentication implemented to secure API endpoints, using a hardcoded user configurable via `.env`.
 
 **Next Steps:**
 
-- Add authentication (e.g., Basic Auth or JWT).
-- Include Mermaid diagrams for each layer (bronze, silver, gold) and overall data lake.
+- Implement db migration.

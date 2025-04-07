@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from movies_data_pipeline.api.routes import seed, crud, gold, search
+from movies_data_pipeline.api.routes import seed, crud, gold, search, auth 
 from movies_data_pipeline.data_access.vector_db import VectorDB
 from movies_data_pipeline.data_access.database import init_db, get_session_direct
 from movies_data_pipeline.services.initialize_service import InitializeService
@@ -23,6 +23,7 @@ app.include_router(seed.router, prefix="", tags=["seed"])
 app.include_router(crud.router, prefix="", tags=["bronze"])
 app.include_router(gold.router, prefix="", tags=["gold"])
 app.include_router(search.router, prefix="", tags=["search"])
+app.include_router(auth.router)
 
 @app.on_event("startup")
 async def startup_event():
