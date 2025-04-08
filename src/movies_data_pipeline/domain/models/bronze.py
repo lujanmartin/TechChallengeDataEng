@@ -1,0 +1,22 @@
+from typing import List, Optional
+from datetime import date
+from pydantic import BaseModel
+
+
+class BronzeMovieUpdate(BaseModel):
+    bronze_id: int
+    name: Optional[str] = None
+    orig_title: Optional[str] = None
+    overview: Optional[str] = None
+    status: Optional[str] = None
+    date_x: Optional[str] = None
+    genre: Optional[str] = None
+    crew: Optional[str] = None
+    country: Optional[str] = None
+    orig_lang: Optional[str] = None
+    budget_x: Optional[float] = None
+    revenue: Optional[float] = None
+    score: Optional[float] = None
+
+    class Config:
+        json_encoders = {date: lambda v: v.isoformat() if v else None}

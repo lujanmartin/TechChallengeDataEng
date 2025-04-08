@@ -1,0 +1,104 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: pgadmin
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+  #     PGADMIN_LISTEN_PORT: ${PGADMIN_LISTEN_PORT}
+  #   ports:
+  #     - "8080:80"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #   networks:
+  #     - app_network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fastapi_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src/movies_data_pipeline:/app/movies_data_pipeline
+    #  - ./src/movies_data_pipeline/data_access/data_lake:/app/movies_data_pipeline/data_access/data_lake # removing the bind so data does not persist on my local 
+    depends_on:
+      postgres:
+        condition: service_healthy
+      typesense:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - TYPESENSE_HOST=${TYPESENSE_HOST}
+      - TYPESENSE_PORT=${TYPESENSE_PORT}
+      - TYPESENSE_API_KEY=${TYPESENSE_API_KEY}
+      - DATA_LAKE_BASE_PATH=${DATA_LAKE_BASE_PATH}
+      - BRONZE_BASE_PATH=${BRONZE_BASE_PATH}
+      - SILVER_BASE_PATH=${SILVER_BASE_PATH}
+      - GOLD_BASE_PATH=${GOLD_BASE_PATH}
+      - BATCH_SIZE=${BATCH_SIZE}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - HARDCODED_USERNAME=${HARDCODED_USERNAME} 
+      - HARDCODED_PASSWORD=${HARDCODED_PASSWORD}
+    networks:
+      - app_network
+    command: uvicorn movies_data_pipeline.api.main:app --host 0.0.0.0 --port 8000 --reload --log-level info
+
+  typesense:
+    build:
+      context: .
+      dockerfile: Dockerfile.typesense
+    container_name: typesense_db
+    ports:
+      - "8108:8108"
+    volumes:
+      - typesense_data:/data
+    environment:
+      - TYPESENSE_API_KEY=${TYPESENSE_API_KEY}
+      - TYPESENSE_DATA_DIR=${TYPESENSE_DATA_DIR}
+      - TYPESENSE_ENABLE_CORS=${TYPESENSE_ENABLE_CORS}
+      - TYPESENSE_LOG_LEVEL=WARN
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-H", "X-TYPESENSE-API-KEY: ${TYPESENSE_API_KEY}", "http://localhost:8108/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  postgres_data:
+  typesense_data:
+#  pgadmin_data:
+
+networks:
+  app_network:
+    driver: bridge
