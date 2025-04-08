@@ -59,12 +59,12 @@ graph TD
     C --> N["Data Mart"]
     N --> O["dm_revenue_by_genre_year"]
     N --> P["dm_top_movies_by_revenue"]
-    N -->|"Query"| Q["GET /datamart/revenue_by_genre_year"]
-    N -->|"Query"| R["GET /datamart/top_movies_by_revenue"]
+    N -->|"Query"| Q["GET /datamart/revenue_by_genre_year (JWT-protected)"]
+    N -->|"Query"| R["GET /datamart/top_movies_by_revenue (JWT-protected)"]
     C -->|"Sync"| S["Typesense<br/>(Vector DB)"]
-    S -->|"Search"| T["GET /search/"]
-    D -->|"Query"| U["GET /revenue_by_genre"]
-    D -->|"Query"| V["GET /avg_score_by_year"]
+    S -->|"Search"| T["GET /search/ (JWT-protected)"]
+    D -->|"Query"| U["GET /revenue_by_genre (JWT-protected)"]
+    D -->|"Query"| V["GET /avg_score_by_year (JWT-protected)"]
 ```
 
 ## Explanation:
@@ -80,7 +80,7 @@ This diagram shows the organization and flow across all layers of the data lake,
 
 ```mermaid
 graph TD
-    A["Uploaded Files<br/>(CSV, JSON, parquet)"] -->|"POST /seed/"| B["Bronze Layer"]
+    A["Uploaded Files<br/>(CSV, JSON, parquet)"] -->|"POST /seed/ (JWT-protected)"| B["Bronze Layer"]
     B -->|"Raw Data"| C["bronze_movies.parquet"]
     B -->|"Original Files"| D["Bronze Directory<br/>(/data_lake/bronze/)"]
     C -->|"ETLService"| E["Silver Layer"]
@@ -93,18 +93,19 @@ graph TD
     H --> L["Data Mart"]
     L --> M["dm_revenue_by_genre_year"]
     L --> N["dm_top_movies_by_revenue"]
-    L -->|"Query"| O["GET /datamart/revenue_by_genre_year"]
-    L -->|"Query"| P["GET /datamart/top_movies_by_revenue"]
+    L -->|"Query"| O["GET /datamart/revenue_by_genre_year (JWT-protected)"]
+    L -->|"Query"| P["GET /datamart/top_movies_by_revenue (JWT-protected)"]
     H -->|"Sync"| Q["Typesense"]
-    Q -->|"Search"| R["GET /search/"]
-    H -->|"Query"| S["GET /revenue_by_genre"]
-    H -->|"Query"| T["GET /avg_score_by_year"]
+    Q -->|"Search"| R["GET /search/ (JWT-protected)"]
+    H -->|"Query"| S["GET /revenue_by_genre (JWT-protected)"]
+    H -->|"Query"| T["GET /avg_score_by_year (JWT-protected)"]
     C -->|"CRUD"| U["BronzeService"]
-    U -->|"GET /data/"| V["Paginated Data"]
-    U -->|"GET /files/"| W["List Files"]
-    U -->|"POST /data/"| X["Create"]
-    U -->|"PUT /bronze/update-full-etl/"| Y["Update"]
-    U -->|"DELETE /bronze/delete-full-etl/"| Z["Delete"]
+    U -->|"GET /bronze/v1/data/ (JWT-protected)"| V["Paginated Data"]
+    U -->|"GET /bronze/v2/data/ (JWT-protected)"| W["By bronze_id or name"]
+    U -->|"GET /bronze/v1/files/ (JWT-protected)"| X["List Files"]
+    U -->|"POST /bronze/v1/data/ (JWT-protected)"| Y["Create"]
+    U -->|"PUT /bronze/v1/update-full-etl/ (JWT-protected)"| Z["Update"]
+    U -->|"DELETE /bronze/v1/delete-full-etl/ (JWT-protected)"| AA["Delete"]
 ```
 
 ## Explanation:
@@ -112,16 +113,13 @@ graph TD
 - **Bronze Layer**: Stores raw data and original files.
 - **Silver Layer**: Processes and deduplicates data.
 - **Gold Layer**: Structures data in PostgreSQL and syncs with Typesense.
-- **CRUD Operations**: The `BronzeService` supports full CRUD on the Bronze layer, with updates and deletes triggering full ETL (truncate-and-load).
+- **CRUD Operations**: `BronzeService` supports:
+  - `/bronze/v1/data/` (GET) for paginated data.
+  - `/v1/files/` (GET) to list files.
+  - `/v1/data/` (POST) to create.
+  - `/v1/update-full-etl/` (PUT) to update.
+  - `/v1/delete-full-etl/` (DELETE) to delete.  
+  - `/v2/data/` (GET) to fetch a single record by `bronze_id` or `name`.
 - **Queries and Search**: The Gold layer supports analytical queries and search via Typesense.
-
-
-
-
-
-
-
-
-
-
+All endpoints are now JWT-protected.
 
