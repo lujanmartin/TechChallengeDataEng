@@ -1,8 +1,7 @@
-# movies_data_pipeline/services/bronze_service.py
 import logging
 from pathlib import Path
 import pandas as pd
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Dict, List
 from movies_data_pipeline.domain.models.bronze import BronzeMovieUpdate
 import math
 from fastapi import UploadFile
@@ -123,8 +122,13 @@ class BronzeService:
                 mask = df["bronze_id"] == update.bronze_id
                 if not mask.any():
                     raise ValueError(f"No record found with bronze_id {update.bronze_id}")
-                for key, value in update.dict(exclude_unset=True).items():
-                    df.loc[mask, key] = value
+                
+                # Use model_dump() and add type hint
+                update_dict: Dict[str, Any] = update.model_dump()
+                for key, value in update_dict.items():
+                    # skip bronze_id as it's used for the mask and shouldn't be updated
+                    if key != "bronze_id":
+                        df.loc[mask, key] = value
             
             df.to_parquet(self.bronze_file_path)
             logger.info(f"Updated {len(updates)} records in {self.bronze_file_path}")

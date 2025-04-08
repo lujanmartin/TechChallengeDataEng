@@ -11,6 +11,7 @@ from .search_service_adapter import SearchServiceAdapter
 from movies_data_pipeline.data_access.vector_db import VectorDB
 from movies_data_pipeline.domain.models.bronze import BronzeMovieUpdate
 from movies_data_pipeline.services.datamart_service import DataMartService
+from movies_data_pipeline.services.bronze_service import BronzeService
 import os
 from pathlib import Path
 
@@ -42,19 +43,19 @@ class ETLService:
         self.datamart.refresh_datamart()
         logger.info("Load phase completed")
 
-    def update_and_run_full_etl(self, updates: Union[Dict[str, Any], List[Dict[str, Any]]]) -> int:
-        from movies_data_pipeline.services.bronze_service import BronzeService
+    def update_and_run_full_etl(self, updates: Union[Dict[str, Any], List[Dict[str, Any]]], bronze_service: BronzeService) -> None:
+        """Update bronze records and run full ETL with truncate-and-load."""
         try:
+            # Normalize updates to a list
             update_list = [updates] if isinstance(updates, dict) else updates
-            for update in update_list:
-                if "bronze_id" not in update:
-                    raise ValueError("Each update must include a 'bronze_id'")
+            
+            # Pass raw data without preprocessing crew
             bronze_updates = [BronzeMovieUpdate(**update) for update in update_list]
-            bronze_service = BronzeService(str(self.bronze_file_path), self)
+            
             bronze_service.update_bronze(bronze_updates)
-            self._update_silver_with_bronze_ids([update.bronze_id for update in bronze_updates])
+
             self._run_full_etl()
-            return len(update_list)
+                            
         except Exception as e:
             logger.error(f"Failed in update_and_run_full_etl: {str(e)}")
             raise

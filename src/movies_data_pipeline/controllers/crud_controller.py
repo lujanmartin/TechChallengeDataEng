@@ -86,10 +86,12 @@ class CrudController:
             updates: Union[Dict[str, Any], List[Dict[str, Any]]],
             background_tasks: BackgroundTasks,
             etl_service: ETLService = Depends(self.get_etl_service),
-            current_user: str = Depends(get_current_user)
+            bronze_service: BronzeService = Depends(self.get_bronze_service),
+            current_user: str = Depends(get_current_user),
+
         ):
             try:
-                background_tasks.add_task(etl_service.update_and_run_full_etl, updates)
+                background_tasks.add_task(etl_service.update_and_run_full_etl, updates, bronze_service)
                 update_count = len([updates]) if isinstance(updates, dict) else len(updates)
                 return {"message": f"Updating {update_count} record(s), full ETL with truncate-and-load started"}
             except ValueError as e:

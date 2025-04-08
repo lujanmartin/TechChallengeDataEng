@@ -8,12 +8,12 @@ class BronzeMovieUpdate(BaseModel):
     orig_title: Optional[str] = None
     overview: Optional[str] = None
     status: Optional[str] = None
-    release_date: Optional[date] = None
-    genres: Optional[List[str]] = None
-    crew: Optional[List[dict]] = None
+    date_x: Optional[str] = None
+    genre: Optional[str] = None
+    crew: Optional[str] = None
     country: Optional[str] = None
-    language: Optional[str] = None
-    budget: Optional[float] = None
+    orig_lang: Optional[str] = None
+    budget_x: Optional[float] = None
     revenue: Optional[float] = None
     score: Optional[float] = None
 

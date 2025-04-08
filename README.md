@@ -263,4 +263,17 @@ This is stage of the project fulfils core requirements from the technical challe
 
 **Next Steps:**
 
-- Implement db migration.
+- **Alembic:** I’ll add Alembic to handle database migrations for the PostgreSQL gold layer. As I expand the star schema—say, adding a `dim_studio` table or tweaking `fact_movie_metrics` —Alembic will keep the schema consistent and trackable, making updates smoother across dev and prod setups.
+
+- **Celery with Redis:** To make my FastAPI app more responsive, I’ll bring in Celery with Redis as a task queue. Heavy lifting, like processing a big CSV upload to bronze via `/seed`, can run in the background. This keeps the API responsive for users, and I’ll use Flower as a dashboard to keep an eye on those tasks in real-time.
+
+- **Task Status Endpoint:** I’ll add a new endpoint, like GET `/tasks/{task_id}`, to let users check on Celery jobs—think tracking the ETL for a bronze file upload. It’ll pull the task’s state (e.g., “processing,” “done”) and progress (e.g., “50% through deduplication”) from Celery, giving real-time feedback without clogging the API.
+
+- **Redis Caching:** Since Redis is already in play for Celery, I’ll use it to cache frequent queries, like GET `/revenue_by_genre` or `/datamart/top_movies_by_revenue`. Storing results with a TTL (e.g., 1 hour) will cut down on PostgreSQL hits, speeding up responses for users pulling the same analytics repeatedly.
+
+- **Airflow:** I want Airflow to take charge of scheduling the ETL flow—like kicking off daily bronze ingestion or refreshing the gold layer and Data Mart views. With DAGs and sensors watching for new files in the bronze folder, it’ll ensure the pipeline runs like clockwork, syncing Typesense for search as the final step.
+
+**JSON Validators:** I’ll tighten up data coming into endpoints like POST `/seed` or PUT `/bronze/v1/update-full-etl` with JSON schema checks (probably via Pydantic). This catches bad data—like a missing name or invalid revenue—before it hits the pipeline, keeping bronze clean and downstream layers reliable.
+
+**JWT with Private/Public Key:** I’ll upgrade JWT auth from a shared secret to RSA key pairs. For my `/auth/token` endpoint, this means generating tokens with a private key and verifying them with a public one—more secure and scalable if I ever split the API into microservices. It’s a small tweak with big wins: no key leaks, and easier trust between components.
+
