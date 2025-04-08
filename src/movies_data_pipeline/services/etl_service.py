@@ -3,13 +3,14 @@ import pandas as pd
 from typing import Dict, Union, List, Any
 import logging
 from sqlalchemy import create_engine
-from .extractor_service import Extractor  # Assuming this is your Extractor class
+from .extractor_service import Extractor  
 from .transformer_service import Transformer
 from .loader_service import Loader
 from .truncate_loader_service import TruncateLoader
 from .search_service_adapter import SearchServiceAdapter
 from movies_data_pipeline.data_access.vector_db import VectorDB
 from movies_data_pipeline.domain.models.bronze import BronzeMovieUpdate
+from movies_data_pipeline.services.datamart_service import DataMartService
 import os
 from pathlib import Path
 
@@ -27,6 +28,7 @@ class ETLService:
         self.truncate_loader = TruncateLoader(self.silver_file_path, self.db_engine)
         self.search_adapter = SearchServiceAdapter(self.bronze_file_path)
         self.vector_db = VectorDB(initialize=False)
+        self.datamart =  DataMartService()
 
     def transform(self, new_file_path: str) -> Dict[str, pd.DataFrame]:
         logger.info("Starting transform phase")
@@ -37,6 +39,7 @@ class ETLService:
     def load(self, gold_tables: Dict[str, pd.DataFrame]) -> None:
         logger.info("Starting load phase")
         self.loader.load_gold(gold_tables)
+        self.datamart.refresh_datamart()
         logger.info("Load phase completed")
 
     def update_and_run_full_etl(self, updates: Union[Dict[str, Any], List[Dict[str, Any]]]) -> int:
@@ -193,6 +196,7 @@ class ETLService:
             
             gold_tables = self.transformer._create_gold_tables(silver_df, lineage_entries, str(self.bronze_file_path))
             self.truncate_loader.load_gold(gold_tables)
+            self.datamart.refresh_datamart()
             logger.info("Full ETL with truncate-and-load completed")
         except Exception as e:
             logger.error(f"Full ETL failed: {str(e)}")

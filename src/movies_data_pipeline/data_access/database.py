@@ -1,5 +1,6 @@
 import os
 from sqlmodel import create_engine, SQLModel, Session
+from sqlalchemy.sql import text 
 import logging
 from typing import Generator
 
@@ -31,6 +32,50 @@ def init_db():
     try:
         logger.info("Initializing database tables")
         SQLModel.metadata.create_all(engine)
+            # Create Data Mart materialized views
+        with Session(engine) as session:
+            # Drop existing materialized views if they exist (for idempotency)
+            session.exec(text("DROP MATERIALIZED VIEW IF EXISTS dm_revenue_by_genre_year CASCADE;"))
+            session.exec(text("DROP MATERIALIZED VIEW IF EXISTS dm_top_movies_by_revenue CASCADE;"))
+
+            # Create dm_revenue_by_genre_year materialized view
+            session.exec(text("""
+                CREATE MATERIALIZED VIEW dm_revenue_by_genre_year AS
+                SELECT 
+                    dg.genre_name,
+                    dd.year,
+                    SUM(fmm.revenue) AS total_revenue,
+                    COUNT(DISTINCT fmm.movie_id) AS movie_count,
+                    'datamart-' || CURRENT_TIMESTAMP AS lineage_id
+                FROM fact_movie_metrics fmm
+                JOIN bridge_movie_genre bmg ON fmm.movie_id = bmg.movie_id
+                JOIN dim_genre dg ON bmg.genre_id = dg.genre_id
+                JOIN dim_date dd ON fmm.date_id = dd.date_id
+                GROUP BY dg.genre_name, dd.year;
+            """))
+            session.exec(text("CREATE UNIQUE INDEX dm_revenue_by_genre_year_idx ON dm_revenue_by_genre_year (genre_name, year);"))
+
+            # Create dm_top_movies_by_revenue materialized view
+            session.exec(text("""
+                CREATE MATERIALIZED VIEW dm_top_movies_by_revenue AS
+                SELECT 
+                    fmm.movie_id,
+                    dm.name AS title,
+                    fmm.revenue,
+                    dd.year AS release_year,
+                    ROW_NUMBER() OVER (ORDER BY fmm.revenue DESC) AS rank,
+                    'datamart-' || CURRENT_TIMESTAMP AS lineage_id
+                FROM fact_movie_metrics fmm
+                JOIN dim_movie dm ON fmm.movie_id = dm.movie_id
+                JOIN dim_date dd ON fmm.date_id = dd.date_id
+                WHERE fmm.revenue IS NOT NULL
+                ORDER BY fmm.revenue DESC
+                LIMIT 10;
+            """))
+            session.exec(text("CREATE UNIQUE INDEX dm_top_movies_by_revenue_idx ON dm_top_movies_by_revenue (movie_id);"))
+
+            session.commit()
+
         logger.info("Database tables created successfully")
     except Exception as e:
         logger.error(f"Failed to initialize database: {str(e)}")

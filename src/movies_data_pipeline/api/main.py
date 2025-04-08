@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from movies_data_pipeline.api.routes import seed, crud, gold, search, auth 
+from movies_data_pipeline.api.routes import seed, crud, gold, search, auth , datamart  
 from movies_data_pipeline.data_access.vector_db import VectorDB
 from movies_data_pipeline.data_access.database import init_db, get_session_direct
 from movies_data_pipeline.services.initialize_service import InitializeService
@@ -12,7 +12,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-# Suppress overly verbose SQLAlchemy logs if not needed
+# Suppress overly verbose SQLAlchemy logs
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 logging.getLogger("python_multipart.multipart").setLevel(logging.INFO)
 
@@ -24,6 +24,7 @@ app.include_router(crud.router, prefix="", tags=["bronze"])
 app.include_router(gold.router, prefix="", tags=["gold"])
 app.include_router(search.router, prefix="", tags=["search"])
 app.include_router(auth.router)
+app.include_router(datamart.router) 
 
 @app.on_event("startup")
 async def startup_event():

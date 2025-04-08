@@ -3,7 +3,7 @@
 A data engineering project that implements an ETL pipeline, data lake, data warehouse, vector database, and REST API for movies business analysis.
 
 ## Architecture
-- **PostgreSQL**: Hosts the Gold layer in a data warehouse with a star schema, storing fact and dimension tables (e.g., `fact_movie_metrics`, `dim_movie`) for efficient querying.
+- **PostgreSQL**: Hosts the Gold layer in a data warehouse with a star schema, storing fact and dimension tables (e.g., `fact_movie_metrics`, `dim_movie`) for efficient querying, and a Data Mart with materialized views for revenue analytics.
 - **Typesense**: Vector database providing fast search capabilities for movie entities, synced with the Gold layer.
 - **FastAPI**: REST API for data seeding, querying, and CRUD operations, secured with JWT authentication.
 - **Data Lake**: Medallion architecture with:
@@ -37,6 +37,7 @@ This project is a movie data pipeline built with FastAPI, PostgreSQL, and Typese
 - **Deduplication in Silver:** The silver layer deduplicates data based on `name` and `orig_title`, ensuring only unique records flow to gold. Original files in bronze remain untouched.
 - **Data Flow:** Data moves from bronze (raw) -> silver (cleaned, deduplicated) -> gold (structured star schema in PostgreSQL), with Typesense syncing from gold for search.
 - **Authentication:** JWT (JSON Web Token) authentication is implemented to secure API endpoints, using a hardcoded user for simplicity (configurable via environment variables).
+- **Data Mart**: Implemented with materialized views (`dm_revenue_by_genre_year`, `dm_top_movies_by_revenue`) in PostgreSQL for optimized revenue analytics, refreshed via the ETL pipeline.
 
 
 
@@ -49,14 +50,16 @@ src/
 │   │   ├── routes/                 # API endpoints
 │   │   │   ├── auth.py             # JWT authentication routes
 │   │   │   ├── crud.py             # CRUD routes
-│   │   │   ├── gold.py             # GET /revenue_by_genre, GET /avg_score_by_year
-│   │   │   ├── search.py           # GET /search/
-│   │   │   └── seed.py             # POST /
+│   │   │   ├── datamart.py         # Data Mart routes
+│   │   │   ├── gold.py             # Gold layer queries
+│   │   │   ├── search.py           # Search routes
+│   │   │   └── seed.py             # Seeding routes
 │   │   └── main.py                 # FastAPI entry point
 │   ├── config/                     # Configuration files
 │   │   └── auth.py                 # JWT configuration
 │   ├── controllers/                # Business logic
 │   │   ├── crud_controller.py      # CRUD operations
+│   │   ├── datamart_controller.py  # Data Mart queries
 │   │   ├── gold_controller.py      # Gold layer queries
 │   │   ├── search_controller.py    # Search logic
 │   │   └── seed_controller.py      # Seeding logic
@@ -64,6 +67,7 @@ src/
 │   │   ├── __pycache__/            # Python cache directory
 │   │   ├── auth_service.py         # JWT authentication logic
 │   │   ├── bronze_service.py       # Bronze layer operations
+│   │   ├── datamart_service.py     # Data Mart refresh logic
 │   │   ├── etl_service.py          # ETL pipeline coordinator
 │   │   ├── extractor_service.py    # Data extraction
 │   │   ├── initialize_service.py   # Schema initialization
@@ -96,6 +100,7 @@ src/
 | Directory         | Purpose                              |
 |-------------------|--------------------------------------|
 | `api/`            | FastAPI routes for seeding, querying, and partial CRUD. |
+| `config/`         | Configuration settings (e.g., JWT). |
 | `controllers/`    | Logic for API endpoints.           |
 | `services/`       | ETL pipeline, bronze operations, and search services. |
 | `data_access/`    | Data lake, PostgreSQL, and Typesense connections. |
@@ -112,6 +117,7 @@ src/
 - **ETLService:** Orchestrates the pipeline, processing only new files and triggering Typesense sync.
 - **BronzeService:** Handles bronze operations (seeding, partial CRUD), ensuring updates occur only via explicit PUT requests.
 - **AuthService:** Implements JWT authentication with a hardcoded user (configurable via `.env`).
+- **DataMartService:** Refreshes Data Mart materialized views (`dm_revenue_by_genre_year`, `dm_top_movies_by_revenue`) after Gold layer updates.
 
 
 ### Deduplication Strategy:
@@ -130,7 +136,9 @@ src/
   - **Bridge Tables:** `bridge_movie_genre`, `bridge_movie_crew` for many-to-many relationships.
   - **Aggregates:** `revenue_by_genre`, `avg_score_by_year`.
   - **Lineage:** `lineage_log` for tracking transformations.
-
+- **Data Mart (PostgreSQL):** Materialized views for revenue analytics:
+  - `dm_revenue_by_genre_year`: Revenue by genre and year, refreshed via ETL.
+  - `dm_top_movies_by_revenue`: Top 10 movies by revenue, refreshed via ETL.
 
 ## REST API Endpoints
 
@@ -139,6 +147,8 @@ src/
 - **GET** `/search/`: Searches movies in Typesense by query and optional genre filter, with pagination (`limit`, `offset`).
 - **GET** `/revenue_by_genre`: Retrieves total revenue by genre from PostgreSQL.(JWT-protected)
 - **GET** `/avg_score_by_year`: Retrieves average score by year from PostgreSQL.(JWT-protected)
+- **GET** `/datamart/revenue_by_genre_year`: Revenue aggregated by genre and year from materialized view. (JWT-protected)
+- **GET** `/datamart/top_movies_by_revenue`: Top 10 movies by revenue from materialized view. (JWT-protected)
 - **GET** `/data/`: Fetches paginated bronze data.
 - **GET** `/files/`: Lists bronze files excluding `bronze_movies.parquet`.
 - **POST** `/data/`: Creates new bronze records (single `JSON` object or an array of `JSON` objects)
@@ -249,6 +259,7 @@ This is stage of the project fulfils core requirements from the technical challe
 - FastAPI REST API with seeding and querying implemented, partial CRUD in progress.
 - Pydantic domain models and SQLModel for gold tables.
 - JWT authentication implemented to secure API endpoints, using a hardcoded user configurable via `.env`.
+- Data Mart with materialized views (`dm_revenue_by_genre_year`, `dm_top_movies_by_revenue`) for revenue analytics, refreshed via ETL.
 
 **Next Steps:**
 
