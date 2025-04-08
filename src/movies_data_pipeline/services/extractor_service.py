@@ -52,6 +52,10 @@ class Extractor:
                 logger.info(f"No data extracted from {filename}; skipping append")
                 return 0
             
+            # Standardize column name in the new dataframe (in cvs column is named 'names', in JSON the key in 'name')
+            if 'names' in df.columns:
+                df = df.rename(columns={'names': 'name'})
+
             # Append to bronze/movies.parquet
             if self.bronze_file_path.exists():
                 existing_df = pd.read_parquet(self.bronze_file_path)

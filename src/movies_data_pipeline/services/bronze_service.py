@@ -2,7 +2,7 @@
 import logging
 from pathlib import Path
 import pandas as pd
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 from movies_data_pipeline.domain.models.bronze import BronzeMovieUpdate
 import math
 from fastapi import UploadFile
@@ -56,6 +56,30 @@ class BronzeService:
         paginated_df = df.iloc[start_idx:end_idx]
         logger.info(f"Fetched {len(paginated_df)} records from bronze (page {page}, size {page_size})")
         return paginated_df, page, page_size, total_records, total_pages
+    
+    def get_bronze_by_id_or_name(self, bronze_id: Optional[int] = None, name: Optional[str] = None) -> pd.DataFrame:
+        """Fetch a single bronze record by bronze_id or name."""
+        if not self.bronze_file_path.exists():
+            logger.info("Bronze file does not exist; returning empty result")
+            return pd.DataFrame()
+        
+        df = pd.read_parquet(self.bronze_file_path)
+        
+        if bronze_id is not None:
+            result = df[df["bronze_id"] == bronze_id]
+            if result.empty:
+                logger.info(f"No record found for bronze_id {bronze_id}")
+                raise ValueError(f"No record found with bronze_id {bronze_id}")
+        elif name is not None:
+            result = df[df["name"].str.lower() == name.lower()]
+            if result.empty:
+                logger.info(f"No record found for name {name}")
+                raise ValueError(f"No record found with name {name}")
+        else:
+            raise ValueError("Either bronze_id or name must be provided")
+        
+        logger.info(f"Fetched record for bronze_id={bronze_id} or name={name}")
+        return result
 
     def delete_bronze(self, bronze_id: int) -> None:
         """Delete a bronze record by bronze_id and reprocess ETL."""

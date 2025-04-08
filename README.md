@@ -7,7 +7,7 @@ A data engineering project that implements an ETL pipeline, data lake, data ware
 - **Typesense**: Vector database providing fast search capabilities for movie entities, synced with the Gold layer.
 - **FastAPI**: REST API for data seeding, querying, and CRUD operations, secured with JWT authentication.
 - **Data Lake**: Medallion architecture with:
-  - **Bronze Layer**: Raw, unprocessed data stored as Parquet files (e.g., `bronze_movies.parquet`) and original uploaded files (e.g., CSV, JSON), preserved as-is for lineage and auditing.
+  - **Bronze Layer**: Raw, unprocessed data stored as Parquet files (e.g., `bronze_movies.parquet`) and original uploaded files (e.g., CSV, JSON, parquet), preserved as-is for lineage and auditing.
   - **Silver Layer**: Cleaned, deduplicated data stored as Parquet files (e.g., `silver_movies.parquet`), processing only new, unique records.
   - **Gold Layer**: Structured data in a star schema, stored in PostgreSQL, with lineage tracking.
 
@@ -49,7 +49,7 @@ src/
 │   ├── api/                        # FastAPI API layer
 │   │   ├── routes/                 # API endpoints
 │   │   │   ├── auth.py             # JWT authentication routes
-│   │   │   ├── crud.py             # CRUD routes
+│   │   │   ├── crud.py             # CRUD routes (v1 and v2)
 │   │   │   ├── datamart.py         # Data Mart routes
 │   │   │   ├── gold.py             # Gold layer queries
 │   │   │   ├── search.py           # Search routes
@@ -58,13 +58,12 @@ src/
 │   ├── config/                     # Configuration files
 │   │   └── auth.py                 # JWT configuration
 │   ├── controllers/                # Business logic
-│   │   ├── crud_controller.py      # CRUD operations
+│   │   ├── crud_controller.py      # CRUD operations (v1 and v2)
 │   │   ├── datamart_controller.py  # Data Mart queries
 │   │   ├── gold_controller.py      # Gold layer queries
 │   │   ├── search_controller.py    # Search logic
 │   │   └── seed_controller.py      # Seeding logic
 │   ├── services/                   # Data processing services
-│   │   ├── __pycache__/            # Python cache directory
 │   │   ├── auth_service.py         # JWT authentication logic
 │   │   ├── bronze_service.py       # Bronze layer operations
 │   │   ├── datamart_service.py     # Data Mart refresh logic
@@ -75,7 +74,7 @@ src/
 │   │   ├── search_service.py       # Search logic
 │   │   ├── search_service_adapter.py # Typesense integration
 │   │   ├── transformer_service.py  # Data transformation
-│   │   └── truncate_loader_service.py # Truncate-and-load for gold layer
+│   │   └── truncate_loader_service.py # Truncate-and-load for gold
 │   ├── data_access/                # Data layer
 │   │   ├── data_lake/              # Data lake
 │   │   │   ├── bronze/             # Raw data (Parquet + original files)
@@ -149,11 +148,12 @@ src/
 - **GET** `/avg_score_by_year`: Retrieves average score by year from PostgreSQL.(JWT-protected)
 - **GET** `/datamart/revenue_by_genre_year`: Revenue aggregated by genre and year from materialized view. (JWT-protected)
 - **GET** `/datamart/top_movies_by_revenue`: Top 10 movies by revenue from materialized view. (JWT-protected)
-- **GET** `/data/`: Fetches paginated bronze data.
-- **GET** `/files/`: Lists bronze files excluding `bronze_movies.parquet`.
-- **POST** `/data/`: Creates new bronze records (single `JSON` object or an array of `JSON` objects)
-- **PUT** `/bronze/update-full-etl/`: Updates bronze records by `bronze_id` (single JSON object or array of JSON objects, `bronze_id` mandatory). Updates the silver layer, deduplicating based on `name` and `orig_title` (considering two movies with the same `name` and `orig_title` as the same movie), then runs the full ETL process, truncating the gold layer and reloading it.
-- **DELETE** `/bronze/delete-full-etl/`: Deletes bronze records by `bronze_id` (single integer or array of integers). Deletes matching records from the silver layer (by `bronze_id` or falling back to `name` and `orig_title`), then runs the full ETL process, truncating the gold layer and reloading it.
+- **GET** `/bronze/v1/data/`: Fetches paginated bronze data(`page`, `page_size`).
+- **GET** `bronze/v2/data/`: Fetches bronze data by `bronze_id` or `name`.
+- **GET** `/bronze/v1/files/`: Lists bronze files (excludes `bronze_movies.parquet`).
+- **POST** `/bronze/v1/data/`: Creates new bronze records (single `JSON` object or an array of `JSON` objects)
+- **PUT** `/bronze/v1/update-full-etl/`: Updates bronze records by `bronze_id` (single JSON object or array of JSON objects, `bronze_id` mandatory). Updates the silver layer, deduplicating based on `name` and `orig_title` (considering two movies with the same `name` and `orig_title` as the same movie), then runs the full ETL process, truncating the gold layer and reloading it.
+- **DELETE** `/bronze/v1/delete-full-etl/`: Deletes bronze records by `bronze_id` (single integer or array of integers). Deletes matching records from the silver layer (by `bronze_id` or falling back to `name` and `orig_title`), then runs the full ETL process, truncating the gold layer and reloading it.
 
 ## Setup and Running
 

@@ -5,6 +5,7 @@ import shutil
 import logging
 from movies_data_pipeline.services.bronze_service import BronzeService
 from movies_data_pipeline.services.etl_service import ETLService
+from movies_data_pipeline.services.auth_service import get_current_user
 import os
 from datetime import datetime
 
@@ -33,7 +34,8 @@ class SeedController:
         async def seed_data(
             file: UploadFile = File(...),
             background_tasks: BackgroundTasks = None,
-            bronze_service: BronzeService = Depends(self.get_bronze_service)
+            bronze_service: BronzeService = Depends(self.get_bronze_service),
+            current_user: str = Depends(get_current_user)
         ):
             """Seed data by saving the uploaded file to bronze with a timestamp and processing it in the background."""
             # Validate file type

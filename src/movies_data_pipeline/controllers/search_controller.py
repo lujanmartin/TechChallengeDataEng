@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from movies_data_pipeline.services.search_service import SearchService
 from movies_data_pipeline.domain.models.movie import Movie
+from movies_data_pipeline.services.auth_service import get_current_user
 from typing import List
 
 class SearchController:
@@ -15,7 +16,8 @@ class SearchController:
             query: str,
             genre: str = None,
             limit: int = 10,
-            offset: int = 0
+            offset: int = 0,
+            current_user: str = Depends(get_current_user)
         ) -> List[Movie]:
             """
             Search movies with optional genre filter and pagination.
