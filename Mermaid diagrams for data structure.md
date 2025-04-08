@@ -56,10 +56,15 @@ graph TD
     C --> K["bridge_movie_genre"]
     C --> L["bridge_movie_crew"]
     C --> M["lineage_log"]
-    C -->|"Sync"| N["Typesense<br/>(Vector DB)"]
-    N -->|"Search"| O["GET /search/"]
-    D -->|"Query"| P["GET /revenue_by_genre"]
-    D -->|"Query"| Q["GET /avg_score_by_year"]
+    C --> N["Data Mart"]
+    N --> O["dm_revenue_by_genre_year"]
+    N --> P["dm_top_movies_by_revenue"]
+    N -->|"Query"| Q["GET /datamart/revenue_by_genre_year"]
+    N -->|"Query"| R["GET /datamart/top_movies_by_revenue"]
+    C -->|"Sync"| S["Typesense<br/>(Vector DB)"]
+    S -->|"Search"| T["GET /search/"]
+    D -->|"Query"| U["GET /revenue_by_genre"]
+    D -->|"Query"| V["GET /avg_score_by_year"]
 ```
 
 ## Explanation:
@@ -75,7 +80,7 @@ This diagram shows the organization and flow across all layers of the data lake,
 
 ```mermaid
 graph TD
-    A["Uploaded Files<br/>(CSV, JSON, parquet)"] -->|"POST /bronze/"| B["Bronze Layer"]
+    A["Uploaded Files<br/>(CSV, JSON, parquet)"] -->|"POST /seed/"| B["Bronze Layer"]
     B -->|"Raw Data"| C["bronze_movies.parquet"]
     B -->|"Original Files"| D["Bronze Directory<br/>(/data_lake/bronze/)"]
     C -->|"ETLService"| E["Silver Layer"]
@@ -85,16 +90,21 @@ graph TD
     H --> I["fact_movie_metrics"]
     H --> J["Dimensions & Bridges"]
     H --> K["lineage_log"]
-    H -->|"Sync"| L["Typesense"]
-    L -->|"Search"| M["GET /search/"]
-    H -->|"Query"| N["GET /revenue_by_genre"]
-    H -->|"Query"| O["GET /avg_score_by_year"]
-    C -->|"CRUD"| P["BronzeService"]
-    P -->|"GET /bronze/data/"| Q["Paginated Data"]
-    P -->|"GET /bronze/files/"| R["List Files"]
-    P -->|"POST /bronze/data/"| S["Create"]
-    P -->|"PUT /bronze/update-full-etl/"| T["Update"]
-    P -->|"DELETE /bronze/delete-full-etl/"| U["Delete"]
+    H --> L["Data Mart"]
+    L --> M["dm_revenue_by_genre_year"]
+    L --> N["dm_top_movies_by_revenue"]
+    L -->|"Query"| O["GET /datamart/revenue_by_genre_year"]
+    L -->|"Query"| P["GET /datamart/top_movies_by_revenue"]
+    H -->|"Sync"| Q["Typesense"]
+    Q -->|"Search"| R["GET /search/"]
+    H -->|"Query"| S["GET /revenue_by_genre"]
+    H -->|"Query"| T["GET /avg_score_by_year"]
+    C -->|"CRUD"| U["BronzeService"]
+    U -->|"GET /data/"| V["Paginated Data"]
+    U -->|"GET /files/"| W["List Files"]
+    U -->|"POST /data/"| X["Create"]
+    U -->|"PUT /bronze/update-full-etl/"| Y["Update"]
+    U -->|"DELETE /bronze/delete-full-etl/"| Z["Delete"]
 ```
 
 ## Explanation:
