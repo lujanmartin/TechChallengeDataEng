@@ -2,6 +2,7 @@ from typing import List, Optional
 from datetime import date
 from pydantic import BaseModel
 
+
 class BronzeMovieUpdate(BaseModel):
     bronze_id: int
     name: Optional[str] = None
@@ -18,6 +19,4 @@ class BronzeMovieUpdate(BaseModel):
     score: Optional[float] = None
 
     class Config:
-        json_encoders = {
-            date: lambda v: v.isoformat() if v else None
-        }
+        json_encoders = {date: lambda v: v.isoformat() if v else None}

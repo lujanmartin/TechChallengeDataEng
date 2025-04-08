@@ -3,9 +3,10 @@ from sqlmodel import SQLModel, Field, UniqueConstraint
 from typing import Optional
 from datetime import datetime
 
-# Keeping integer IDs (e.g., movie_id, language_id) as primary keys and adding uniqueness constraints 
-# on natural key fields (e.g., language_name, country_name) to ensure data integrity. This avoids 
+# Keeping integer IDs (e.g., movie_id, language_id) as primary keys and adding uniqueness constraints
+# on natural key fields (e.g., language_name, country_name) to ensure data integrity. This avoids
 # cascade updates on foreign keys, which can be a headache to manage and debug in a data pipeline.
+
 
 class DimMovie(SQLModel, table=True):
     __tablename__ = "dim_movie"
@@ -19,6 +20,7 @@ class DimMovie(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
+
 class DimDate(SQLModel, table=True):
     __tablename__ = "dim_date"
     __table_args__ = (UniqueConstraint("year", "month", "day", name="uq_dim_date"),)
@@ -30,7 +32,7 @@ class DimDate(SQLModel, table=True):
     lineage_id: str
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    
+
 
 class DimCountry(SQLModel, table=True):
     __tablename__ = "dim_country"
@@ -40,7 +42,7 @@ class DimCountry(SQLModel, table=True):
     lineage_id: str
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    
+
 
 class DimLanguage(SQLModel, table=True):
     __tablename__ = "dim_language"
@@ -50,11 +52,13 @@ class DimLanguage(SQLModel, table=True):
     lineage_id: str
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    
+
 
 class DimCrew(SQLModel, table=True):
     __tablename__ = "dim_crew"
-    __table_args__ = (UniqueConstraint("actor_name", "character_name", name="uq_dim_crew"),)
+    __table_args__ = (
+        UniqueConstraint("actor_name", "character_name", name="uq_dim_crew"),
+    )
     crew_id: int = Field(primary_key=True)
     actor_name: str
     character_name: str
@@ -71,11 +75,13 @@ class DimGenre(SQLModel, table=True):
     lineage_id: str
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    
+
 
 class BridgeMovieGenre(SQLModel, table=True):
     __tablename__ = "bridge_movie_genre"
-    __table_args__ = (UniqueConstraint("movie_id","genre_id", name="uq_bridge_movie_genre"),)
+    __table_args__ = (
+        UniqueConstraint("movie_id", "genre_id", name="uq_bridge_movie_genre"),
+    )
     bridge_id: int = Field(primary_key=True)
     movie_id: int = Field(foreign_key="dim_movie.movie_id")
     genre_id: int = Field(foreign_key="dim_genre.genre_id")
@@ -83,9 +89,14 @@ class BridgeMovieGenre(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
+
 class BridgeMovieCrew(SQLModel, table=True):
     __tablename__ = "bridge_movie_crew"
-    __table_args__ = (UniqueConstraint("movie_id","crew_id","character_name", name="uq_bridge_movie_crew"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "movie_id", "crew_id", "character_name", name="uq_bridge_movie_crew"
+        ),
+    )
     bridge_id: int = Field(primary_key=True)
     movie_id: int = Field(foreign_key="dim_movie.movie_id")
     crew_id: int = Field(foreign_key="dim_crew.crew_id")
@@ -93,6 +104,7 @@ class BridgeMovieCrew(SQLModel, table=True):
     lineage_id: str
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+
 
 class FactMovieMetrics(SQLModel, table=True):
     __tablename__ = "fact_movie_metrics"
@@ -110,6 +122,7 @@ class FactMovieMetrics(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
+
 class LineageLog(SQLModel, table=True):
     __tablename__ = "lineage_log"
     lineage_log_id: int = Field(primary_key=True)
@@ -119,6 +132,7 @@ class LineageLog(SQLModel, table=True):
     transformation: str
     timestamp: datetime
 
+
 class RevenueByGenre(SQLModel, table=True):
     __tablename__ = "revenue_by_genre"
     genre_name: str = Field(primary_key=True)
@@ -126,6 +140,7 @@ class RevenueByGenre(SQLModel, table=True):
     lineage_id: str
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+
 
 class AvrScoreByYear(SQLModel, table=True):
     __tablename__ = "avg_score_by_year"

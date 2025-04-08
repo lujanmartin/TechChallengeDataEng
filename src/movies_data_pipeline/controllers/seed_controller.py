@@ -11,6 +11,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+
 class SeedController:
     def __init__(self):
         """Initialize the SeedController with a router."""
@@ -24,7 +25,9 @@ class SeedController:
         """Provide an ETLService instance."""
         return ETLService()
 
-    def get_bronze_service(self, etl_service: ETLService = Depends(lambda: ETLService())) -> BronzeService:
+    def get_bronze_service(
+        self, etl_service: ETLService = Depends(lambda: ETLService())
+    ) -> BronzeService:
         """Provide a BronzeService instance with its dependencies."""
         bronze_file_path = self.bronze_base_path / "bronze_movies.parquet"
         return BronzeService(str(bronze_file_path), etl_service)
@@ -35,13 +38,15 @@ class SeedController:
             file: UploadFile = File(...),
             background_tasks: BackgroundTasks = None,
             bronze_service: BronzeService = Depends(self.get_bronze_service),
-            current_user: str = Depends(get_current_user)
+            current_user: str = Depends(get_current_user),
         ):
             """Seed data by saving the uploaded file to bronze with a timestamp and processing it in the background."""
             # Validate file type
             file_type = file.filename.split(".")[-1].lower()
             if file_type not in ["csv", "json"]:
-                raise HTTPException(status_code=400, detail="Unsupported file type. Use 'csv', 'json'")
+                raise HTTPException(
+                    status_code=400, detail="Unsupported file type. Use 'csv', 'json'"
+                )
 
             # Generate timestamped filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -58,8 +63,14 @@ class SeedController:
 
                 # Schedule processing in the background
                 logger.info(f"Scheduling bronze processing for {timestamped_filename}")
-                background_tasks.add_task(bronze_service.process_bronze_data, str(raw_file_path))
-                return {"message": f"Data seeding started for {timestamped_filename}, processing in the background"}
+                background_tasks.add_task(
+                    bronze_service.process_bronze_data, str(raw_file_path)
+                )
+                return {
+                    "message": f"Data seeding started for {timestamped_filename}, processing in the background"
+                }
             except Exception as e:
                 logger.error(f"Failed to save file {file.filename} to bronze: {str(e)}")
-                raise HTTPException(status_code=500, detail=f"Failed to initiate seeding: {str(e)}")
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to initiate seeding: {str(e)}"
+                )

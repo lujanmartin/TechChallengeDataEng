@@ -2,6 +2,7 @@ from typing import List, Optional, Dict
 from datetime import date
 from pydantic import BaseModel
 
+
 class Movie(BaseModel):
     name: str
     orig_title: str
@@ -25,8 +26,7 @@ def to_dict(self) -> dict:
         "language": self.language,
     }
 
+
 class Config:
     arbitrary_types_allowed = True
-    json_encoders = {
-        date: lambda v: v.isoformat()
-    }
+    json_encoders = {date: lambda v: v.isoformat()}

@@ -6,6 +6,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+
 class Extractor:
     def __init__(self, bronze_file_path: str):
         """Initialize the Extractor with the bronze Parquet file path."""
@@ -15,7 +16,7 @@ class Extractor:
         """Extract data from a file on disk and assign sequential IDs."""
         file_type = Path(file_path).suffix[1:].lower()
         filename = Path(file_path).name
-        
+
         if file_type == "csv":
             df = pd.read_csv(file_path)
         elif file_type == "json":
@@ -24,15 +25,17 @@ class Extractor:
             df = pd.read_parquet(file_path)
         elif file_type == "pdf":
             df = pd.DataFrame()
-            logger.warning(f"PDF extraction not implemented for {filename}; returning empty DataFrame")
+            logger.warning(
+                f"PDF extraction not implemented for {filename}; returning empty DataFrame"
+            )
         else:
             raise ValueError(f"Unsupported file type '{file_type}' for {filename}")
-        
+
         # Add sequential 'bronze_id' column if not present
         if "bronze_id" not in df.columns:
             num_records = len(df)
             df["bronze_id"] = range(start_id, start_id + num_records)
-        
+
         return df, len(df)
 
     def append_to_bronze(self, file_path: str) -> int:
@@ -41,20 +44,24 @@ class Extractor:
         try:
             # Determine the starting ID
             if self.bronze_file_path.exists():
-                existing_df = pd.read_parquet(self.bronze_file_path, columns=["bronze_id"])
-                start_id = existing_df["bronze_id"].max() + 1 if not existing_df.empty else 0
+                existing_df = pd.read_parquet(
+                    self.bronze_file_path, columns=["bronze_id"]
+                )
+                start_id = (
+                    existing_df["bronze_id"].max() + 1 if not existing_df.empty else 0
+                )
             else:
                 start_id = 0
-            
+
             # Extract data with the next sequential IDs
             df, record_count = self.extract(file_path, start_id=start_id)
             if record_count == 0:
                 logger.info(f"No data extracted from {filename}; skipping append")
                 return 0
-            
+
             # Standardize column name in the new dataframe (in cvs column is named 'names', in JSON the key in 'name')
-            if 'names' in df.columns:
-                df = df.rename(columns={'names': 'name'})
+            if "names" in df.columns:
+                df = df.rename(columns={"names": "name"})
 
             # Append to bronze/movies.parquet
             if self.bronze_file_path.exists():
@@ -62,14 +69,16 @@ class Extractor:
                 combined_df = pd.concat([existing_df, df], ignore_index=True)
             else:
                 combined_df = df
-            
-            combined_df['created_at'] = datetime.now()
-            combined_df['updated_at'] = datetime.now()
-            
+
+            combined_df["created_at"] = datetime.now()
+            combined_df["updated_at"] = datetime.now()
+
             combined_df.to_parquet(self.bronze_file_path)
-            logger.info(f"Appended {record_count} records from {filename} to {self.bronze_file_path}")
+            logger.info(
+                f"Appended {record_count} records from {filename} to {self.bronze_file_path}"
+            )
             return record_count
-        
+
         except Exception as e:
             logger.error(f"Failed to append {filename} to bronze: {str(e)}")
             raise

@@ -6,6 +6,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+
 class InitializeService:
     def __init__(self):
         """Initialize directory paths for bronze and silver layers from environment variables."""
@@ -14,7 +15,9 @@ class InitializeService:
         self.silver_base_path = Path(os.getenv("SILVER_BASE_PATH"))
 
         if not self.bronze_base_path or not self.silver_base_path:
-            raise ValueError("BRONZE_BASE_PATH and SILVER_BASE_PATH must be set in environment variables")
+            raise ValueError(
+                "BRONZE_BASE_PATH and SILVER_BASE_PATH must be set in environment variables"
+            )
 
         # Define specific file paths within the directories
         self.bronze_file_path = self.bronze_base_path / "bronze_movies.parquet"
@@ -27,16 +30,16 @@ class InitializeService:
             "orig_title": str,
             "overview": str,
             "status": str,
-            "date_x": str,  
-            "genre": str,   
-            "crew": str,    
+            "date_x": str,
+            "genre": str,
+            "crew": str,
             "country": str,
             "orig_lang": str,
             "budget_x": float,
             "revenue": float,
             "score": float,
             "created_at": "datetime64[ns]",
-            "updated_at": "datetime64[ns]"
+            "updated_at": "datetime64[ns]",
         }
 
         self.silver_schema = {
@@ -46,9 +49,9 @@ class InitializeService:
             "orig_title": str,
             "overview": str,
             "status": str,
-            "date_x": "datetime64[ns]", 
-            "genre_list": object,        
-            "crew_pairs": object,        
+            "date_x": "datetime64[ns]",
+            "genre_list": object,
+            "crew_pairs": object,
             "country": str,
             "orig_lang": str,
             "budget_x": float,
@@ -56,7 +59,7 @@ class InitializeService:
             "score": float,
             "created_at": "datetime64[ns]",
             "updated_at": "datetime64[ns]",
-            "lineage_id": str
+            "lineage_id": str,
         }
 
     def initialize_schemas(self):
@@ -68,9 +71,13 @@ class InitializeService:
 
             # Bronze layer
             if not self.bronze_file_path.exists():
-                bronze_df = pd.DataFrame(columns=self.bronze_schema.keys()).astype(self.bronze_schema)
+                bronze_df = pd.DataFrame(columns=self.bronze_schema.keys()).astype(
+                    self.bronze_schema
+                )
                 bronze_df.to_parquet(self.bronze_file_path)
-                logger.info(f"Initialized bronze layer schema at {self.bronze_file_path}")
+                logger.info(
+                    f"Initialized bronze layer schema at {self.bronze_file_path}"
+                )
 
             # Silver layer
             if not self.silver_file_path.exists():
@@ -78,7 +85,9 @@ class InitializeService:
                 for col, dtype in self.silver_schema.items():
                     silver_df[col] = silver_df[col].astype(dtype)
                 silver_df.to_parquet(self.silver_file_path)
-                logger.info(f"Initialized silver layer schema at {self.silver_file_path}")
+                logger.info(
+                    f"Initialized silver layer schema at {self.silver_file_path}"
+                )
 
         except Exception as e:
             logger.error(f"Failed to initialize schemas: {str(e)}")

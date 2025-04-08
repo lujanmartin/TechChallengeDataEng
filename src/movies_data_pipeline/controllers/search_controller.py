@@ -4,6 +4,7 @@ from movies_data_pipeline.domain.models.movie import Movie
 from movies_data_pipeline.services.auth_service import get_current_user
 from typing import List
 
+
 class SearchController:
     def __init__(self, db_session=None):
         self.router = APIRouter()
@@ -17,7 +18,7 @@ class SearchController:
             genre: str = None,
             limit: int = 10,
             offset: int = 0,
-            current_user: str = Depends(get_current_user)
+            current_user: str = Depends(get_current_user),
         ) -> List[Movie]:
             """
             Search movies with optional genre filter and pagination.

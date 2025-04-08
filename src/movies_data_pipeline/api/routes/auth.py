@@ -6,6 +6,7 @@ from typing import Dict
 router = APIRouter(prefix="/auth", tags=["auth"])
 auth_service = AuthService()
 
+
 @router.post("/token", response_model=Dict[str, str])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     """OAuth2 compatible token login."""

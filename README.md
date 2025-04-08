@@ -174,6 +174,9 @@ docker-compose up --build
 - FastAPI: http://localhost:8000
 - PostgreSQL: accessible via SSH or pgAdmin (see below)
 
+**API Authentication:**
+- The FastAPI app uses JWT authentication with default credentials: `username: user` and `password: password`. Use these to obtain a token via `POST /auth/token` unless custom credentials are set in the `.env` file.
+
 ### Accessing the PostgreSQL Database
 
 The Gold layer data in PostgreSQL can be accessed in two ways: via SSH into the postgres container or through an optional pgAdmin web interface. The pgAdmin service is included in docker-compose.yml but commented out by default for flexibility.
@@ -277,3 +280,33 @@ This is stage of the project fulfils core requirements from the technical challe
 
 **JWT with Private/Public Key:** I’ll upgrade JWT auth from a shared secret to RSA key pairs. For my `/auth/token` endpoint, this means generating tokens with a private key and verifying them with a public one—more secure and scalable if I ever split the API into microservices. It’s a small tweak with big wins: no key leaks, and easier trust between components.
 
+## Considerations 
+
+### Dataset Size and Loading Time:
+- The IMDB movies dataset contains 10,000 records, which can slow down the ETL process, especially when syncing with Typesense for search functionality.
+
+- Current Implementation: Batch processing is in place to handle data ingestion from bronze to silver to gold (PostgreSQL), and Typesense syncs by fetching crew, genre, language, and release_date data from PostgreSQL’s gold layer.
+
+- Performance Concern: Fetching data from PostgreSQL for Typesense sync introduces overhead, as it queries the database after the gold layer is populated.
+
+- Optimization Idea: Instead of querying PostgreSQL, pass the transformed DataFrames (used to populate `fact_movie_metrics`, `dim_crew`, `dim_genre`, etc.) directly to Typesense during the ETL process. This avoids redundant database calls and leverages in-memory Pandas operations for speed.
+
+- Validation: Testing with a 6,000-record subset runs smoothly, suggesting the 10,000-record dataset is manageable with this tweak.
+
+- Typesense Sync Optimization: Modify SearchServiceAdapter to accept DataFrames from `transformer_service.py` during ETL, bypassing PostgreSQL queries. For example, after transforming `silver_movies.parquet` into `dim_genre` and `bridge_movie_genre`, pass those DataFrames to Typesense for indexing.
+
+### ETL Overhead on Updates and Deletes:
+- Current Behavior: Both PUT `/bronze/v1/update-full-etl/` and DELETE `/bronze/v1/delete-full-etl/` trigger a full ETL run, truncating and reloading the entire gold layer in PostgreSQL (e.g., `fact_movie_metrics`, `dim_movie`). This is inefficient for a 10,000-record dataset, as it reprocesses unchanged data.
+
+- Critique: Dropping and recreating the gold layer discards historical data and scales poorly with larger datasets or frequent updates.
+
+- Alternative 1 - SCD2 : Model dimension tables (e.g., `dim_movie`, `dim_crew`) with SCD2 to track historical changes. Add columns like `valid_from`, `valid_to`, and `is_active` to preserve history without rebuilding the gold layer. Updates would append new rows rather than truncate, though this increases storage and query complexity.
+
+- Alternative 2 - Enhance the gold layer’s lineage_log table to link gold records (e.g., `movie_id` in `fact_movie_metrics`) to `silver_id` from `silver_movies.parquet`. Use composite keys or additional constraints in key tables (e.g., `dim_movie`) to trace updates back to silver. This avoids full reloads by targeting only changed records, though it requires careful indexing for performance.
+
+### Testing and Debugging Datasets:
+- Current Approach: A 6,000-record subset works well for testing and debugging, balancing speed and coverage.
+- Enhancement: Included sample datasets in the repo for convenience, as the full IMDB dataset on Kaggle requires login. Added a simple JSON file (7 records), a 6,000-record subset, and the full 10,000-record dataset to a utils/ folder.
+
+
+Dataset Inclusion: Added utils/sample_10.json, utils/imdb_6k.parquet, and utils/imdb_10k.parquet to the repo, referenced in 
